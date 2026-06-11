@@ -13,9 +13,9 @@
 ## 环境要求
 
 - Python 3.11+
-- `ffmpeg` 和 `ffprobe`
-- 火山语音识别 API Key
-- 火山方舟 API Key 和模型 Endpoint ID
+- [`ffmpeg` 和 `ffprobe`](https://ffmpeg.org/documentation.html)
+- [火山语音识别 API Key](https://www.volcengine.com/docs/6561/80816)（Volcano Engine ASR）
+- [火山方舟 API Key](https://www.volcengine.com/docs/82379/1099455) 和模型 Endpoint ID（Volcano Ark LLM）
 
 ## 安装
 
@@ -65,9 +65,16 @@ outputs/<录音文件名>/
 
 ## `.qma` 说明
 
-`.qma` 不是火山语音识别文档明确支持的音频格式。本 CLI 会先用 `ffprobe/ffmpeg` 尝试解码：
+`.qma` 不是火山语音识别文档明确支持的音频格式。本 CLI 会先用 [`ffprobe`/`ffmpeg`](https://ffmpeg.org/ffprobe.html) 尝试解码：
 
 - 如果可解码，会转为 `.mp3` 后上传。
 - 如果不可解码，会报错并提示先从录音来源导出为 `.m4a/.mp3/.wav`。
 
 本项目不处理加密或受保护音频。
+
+## 相关文档
+
+- [Volcano Engine ASR API](https://www.volcengine.com/docs/6561/80816) — 语音识别接口文档
+- [Volcano Ark LLM API](https://www.volcengine.com/docs/82379/1099455) — 方舟大模型接口文档
+- [ffmpeg Documentation](https://ffmpeg.org/documentation.html) — 音频转码工具文档
+- [Python `python-dotenv`](https://github.com/theskumar/python-dotenv) — 环境变量管理

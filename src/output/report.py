@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from interview_voice_diarizer.models import DebriefReport, InterviewMeta, TranscriptTurn
+from models import DebriefReport, InterviewMeta, TranscriptTurn
 
 
 def write_json(path: Path, data: object) -> None:

@@ -1,5 +1,5 @@
-from interview_voice_diarizer.pipeline.analysis import heuristic_report, infer_roles
-from interview_voice_diarizer.models import TranscriptTurn
+from pipeline.analysis import heuristic_report, infer_roles
+from models import TranscriptTurn
 
 
 def test_infer_roles_by_question_and_answer_pattern() -> None:

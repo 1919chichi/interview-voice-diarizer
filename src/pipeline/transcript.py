@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from interview_voice_diarizer.models import RoleMapping, TranscriptTurn
+from models import RoleMapping, TranscriptTurn
 
 
 def normalize_asr_turns(raw: dict[str, Any]) -> list[TranscriptTurn]:

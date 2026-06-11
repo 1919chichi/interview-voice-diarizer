@@ -9,8 +9,8 @@ from typing import Any
 
 import httpx
 
-from interview_voice_diarizer.config import VolcArkConfig, VolcAsrConfig
-from interview_voice_diarizer.errors import ApiError
+from config import VolcArkConfig, VolcAsrConfig
+from errors import ApiError
 
 SUCCESS_CODE = "20000000"
 PENDING_CODES = {"20000001", "20000002"}

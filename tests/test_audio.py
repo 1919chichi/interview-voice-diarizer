@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from interview_voice_diarizer.pipeline.audio import prepare_audio
-from interview_voice_diarizer.errors import AudioError
+from pipeline.audio import prepare_audio
+from errors import AudioError
 
 
 def test_prepare_audio_rejects_unknown_extension(tmp_path: Path) -> None:

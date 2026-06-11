@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-from interview_voice_diarizer.errors import ConfigError
+from errors import ConfigError
 
 
 @dataclass(frozen=True)

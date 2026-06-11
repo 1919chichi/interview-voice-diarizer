@@ -5,14 +5,14 @@ from typing import Annotated
 
 import typer
 
-from interview_voice_diarizer.config import load_ark_config, load_asr_config, load_environment
-from interview_voice_diarizer.errors import IvdError
-from interview_voice_diarizer.models import InterviewMeta
-from interview_voice_diarizer.output.report import render_review, render_transcript, write_json
-from interview_voice_diarizer.pipeline.analysis import analyze_interview
-from interview_voice_diarizer.pipeline.audio import prepare_audio
-from interview_voice_diarizer.pipeline.transcript import normalize_asr_turns, relabel_turns
-from interview_voice_diarizer.providers.volcengine import VolcArkClient, VolcAsrClient
+from config import load_ark_config, load_asr_config, load_environment
+from errors import IvdError
+from models import InterviewMeta
+from output.report import render_review, render_transcript, write_json
+from pipeline.analysis import analyze_interview
+from pipeline.audio import prepare_audio
+from pipeline.transcript import normalize_asr_turns, relabel_turns
+from providers.volcengine import VolcArkClient, VolcAsrClient
 
 app = typer.Typer(help="本地面试录音转写、说话人分离与复盘 CLI。")
 

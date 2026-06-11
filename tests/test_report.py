@@ -1,11 +1,11 @@
-from interview_voice_diarizer.models import (
+from models import (
     DebriefReport,
     InterviewMeta,
     QuestionReview,
     RoleMapping,
     TranscriptTurn,
 )
-from interview_voice_diarizer.output.report import render_review, render_transcript
+from output.report import render_review, render_transcript
 
 
 def test_render_transcript() -> None:

@@ -5,15 +5,15 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from interview_voice_diarizer.models import (
+from models import (
     DebriefReport,
     InterviewMeta,
     QuestionReview,
     RoleMapping,
     TranscriptTurn,
 )
-from interview_voice_diarizer.pipeline.transcript import transcript_as_text
-from interview_voice_diarizer.providers.volcengine import VolcArkClient
+from pipeline.transcript import transcript_as_text
+from providers.volcengine import VolcArkClient
 
 QUESTION_MARKERS = (
     "?",

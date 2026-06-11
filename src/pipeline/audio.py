@@ -5,8 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from interview_voice_diarizer.errors import AudioError
-from interview_voice_diarizer.models import PreparedAudio
+from errors import AudioError
+from models import PreparedAudio
 
 DIRECT_UPLOAD_FORMATS = {"wav", "mp3", "ogg"}
 CONVERTIBLE_FORMATS = {"m4a", "qma", "mp4", "aac", "flac"}

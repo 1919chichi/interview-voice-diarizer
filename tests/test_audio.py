@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from interview_voice_diarizer.audio import prepare_audio
+from interview_voice_diarizer.pipeline.audio import prepare_audio
 from interview_voice_diarizer.errors import AudioError
 
 
@@ -19,7 +19,7 @@ def test_prepare_audio_direct_mp3_upload(monkeypatch: pytest.MonkeyPatch, tmp_pa
     source.write_bytes(b"fake mp3")
 
     monkeypatch.setattr(
-        "interview_voice_diarizer.audio.probe_audio",
+        "interview_voice_diarizer.pipeline.audio.probe_audio",
         lambda path: {"format": {"duration": "12.5"}},
     )
 
@@ -35,7 +35,7 @@ def test_prepare_audio_converts_m4a(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     source = tmp_path / "interview.m4a"
     source.write_bytes(b"fake m4a")
 
-    monkeypatch.setattr("interview_voice_diarizer.audio.probe_audio", lambda path: {"format": {}})
+    monkeypatch.setattr("interview_voice_diarizer.pipeline.audio.probe_audio", lambda path: {"format": {}})
 
     called: dict[str, Path] = {}
 
@@ -44,7 +44,7 @@ def test_prepare_audio_converts_m4a(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         called["target"] = target_path
         target_path.write_bytes(b"mp3")
 
-    monkeypatch.setattr("interview_voice_diarizer.audio.convert_to_mp3", fake_convert)
+    monkeypatch.setattr("interview_voice_diarizer.pipeline.audio.convert_to_mp3", fake_convert)
 
     prepared = prepare_audio(source, tmp_path / "out")
 

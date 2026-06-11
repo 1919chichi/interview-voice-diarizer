@@ -1,4 +1,4 @@
-from interview_voice_diarizer.analysis import heuristic_report, infer_roles
+from interview_voice_diarizer.pipeline.analysis import heuristic_report, infer_roles
 from interview_voice_diarizer.models import TranscriptTurn
 
 

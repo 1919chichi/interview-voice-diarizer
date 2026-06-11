@@ -1,4 +1,4 @@
-from interview_voice_diarizer.transcript import normalize_asr_turns, transcript_as_text
+from interview_voice_diarizer.pipeline.transcript import normalize_asr_turns, transcript_as_text
 
 
 def test_normalize_asr_turns_from_nested_utterances() -> None:

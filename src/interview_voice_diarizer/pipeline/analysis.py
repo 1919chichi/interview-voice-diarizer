@@ -12,8 +12,8 @@ from interview_voice_diarizer.models import (
     RoleMapping,
     TranscriptTurn,
 )
-from interview_voice_diarizer.transcript import transcript_as_text
-from interview_voice_diarizer.volcengine import VolcArkClient
+from interview_voice_diarizer.pipeline.transcript import transcript_as_text
+from interview_voice_diarizer.providers.volcengine import VolcArkClient
 
 QUESTION_MARKERS = (
     "?",

@@ -1,0 +1,39 @@
+from interview_voice_diarizer.models import (
+    DebriefReport,
+    InterviewMeta,
+    QuestionReview,
+    RoleMapping,
+    TranscriptTurn,
+)
+from interview_voice_diarizer.report import render_review, render_transcript
+
+
+def test_render_transcript() -> None:
+    markdown = render_transcript(
+        InterviewMeta(company="示例公司", role="后端", round_name="一面"),
+        [TranscriptTurn(speaker="Speaker 0", text="请介绍一下项目", start_ms=1000)],
+    )
+
+    assert "# 示例公司 / 后端 / 一面 完整对话" in markdown
+    assert "**Speaker 0** `00:01`: 请介绍一下项目" in markdown
+
+
+def test_render_review() -> None:
+    report = DebriefReport(
+        role_mapping=RoleMapping(interviewer="Speaker 0", candidate="Speaker 1"),
+        questions=[
+            QuestionReview(
+                question="请介绍项目？",
+                answer="我负责交易链路。",
+                defects=["缺少量化结果"],
+                suggestions=["补充 QPS 和耗时变化"],
+                learning_points=["复习事务消息"],
+            )
+        ],
+    )
+
+    markdown = render_review(InterviewMeta(company="示例公司"), report)
+
+    assert "## 角色判断" in markdown
+    assert "### 1. 请介绍项目？" in markdown
+    assert "- 缺少量化结果" in markdown

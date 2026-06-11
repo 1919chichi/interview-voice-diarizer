@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "interview-voice-diarizer"
+version = "0.1.0"
+description = "Local CLI for interview audio transcription, speaker diarization, and debrief reports."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "cz" }]
+dependencies = [
+  "httpx>=0.28.0",
+  "pydantic>=2.10.0",
+  "python-dotenv>=1.0.1",
+  "typer>=0.15.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "respx>=0.22.0",
+  "ruff>=0.8.0",
+]
+
+[project.scripts]
+ivd = "interview_voice_diarizer.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/interview_voice_diarizer"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

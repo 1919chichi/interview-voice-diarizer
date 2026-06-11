@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from interview_voice_diarizer.models import TranscriptTurn
+from interview_voice_diarizer.models import RoleMapping, TranscriptTurn
 
 
 def normalize_asr_turns(raw: dict[str, Any]) -> list[TranscriptTurn]:
@@ -15,6 +15,11 @@ def normalize_asr_turns(raw: dict[str, Any]) -> list[TranscriptTurn]:
     if text:
         return [TranscriptTurn(speaker="Speaker 0", text=text.strip())]
     return []
+
+
+def relabel_turns(turns: list[TranscriptTurn], roles: RoleMapping) -> list[TranscriptTurn]:
+    label_map = {roles.interviewer: "面试官", roles.candidate: "候选人"}
+    return [turn.model_copy(update={"speaker": label_map.get(turn.speaker, turn.speaker)}) for turn in turns]
 
 
 def transcript_as_text(turns: list[TranscriptTurn], max_chars: int | None = None) -> str:

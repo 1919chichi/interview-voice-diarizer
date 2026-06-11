@@ -1,20 +1,65 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Project: interview-voice-diarizer (ivd)
+  A local CLI tool for post-interview audio debrief. Takes a local audio recording,
+  transcodes it if needed (via ffmpeg), calls Volcengine ASR API for transcription +
+  speaker diarization, then uses Volcengine Ark LLM to produce structured debrief reports.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Tech stack:
+    - Python 3.11+
+    - Typer (CLI framework)
+    - Pydantic v2 (data models)
+    - httpx (HTTP client)
+    - python-dotenv (env config)
+    - pytest + respx (testing)
+    - ruff (linting/formatting)
+    - hatchling (build)
+
+  Source layout:
+    src/interview_voice_diarizer/
+      cli.py          – CLI entry point (Typer)
+      config.py       – env var loading and settings
+      errors.py       – custom exceptions
+      models.py       – Pydantic data models
+      providers/      – external service adapters
+        volcengine.py – Volcengine ASR + Ark LLM client
+      pipeline/       – processing pipeline steps
+        audio.py      – local audio probe and transcode
+        transcript.py – ASR result normalization
+        analysis.py   – speaker role inference and debrief analysis
+      output/         – report rendering and file writing
+        report.py
+
+  Conventions:
+    - models.py, errors.py, config.py are foundation layer — no reverse deps on pipeline/ or providers/
+    - New external clients go in providers/; new pipeline steps go in pipeline/; new output formats go in output/
+    - No Web UI, database, or user accounts — keep it a simple local CLI
+    - Never commit API keys, audio files, or output reports containing private data
+    - Commit style: conventional commits (feat/fix/refactor/docs/test/chore)
+    - Line length: 100; target Python 3.11
+
+  External APIs:
+    - Volcengine ASR: recording recognition with speaker diarization and utterance output
+    - Volcengine Ark: LLM endpoint for interview analysis (configurable model endpoint)
+
+  Output artifacts per run (under outputs/<recording-name>/):
+    converted.mp3  – transcoded audio (if needed)
+    raw-asr.json   – raw ASR response
+    summary.json   – structured debrief data
+    transcript.md  – formatted transcript with speaker labels
+    qa-review.md   – interview Q&A review with feedback and learning points
+
+rules:
+  proposal:
+    - Keep proposals under 500 words
+    - Always include a "Non-goals" section
+    - Frame changes in terms of impact on the CLI pipeline (audio → transcript → analysis → output)
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Each task must reference which layer it touches (providers / pipeline / output / foundation)
+    - Include a testing note: unit test with respx mocks for HTTP, real ffmpeg calls are integration tests
+  spec:
+    - Define inputs and outputs for each pipeline step
+    - Specify which Pydantic models are produced or consumed
+    - Call out any new env vars required

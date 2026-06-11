@@ -28,8 +28,6 @@ def render_review(meta: InterviewMeta, report: DebriefReport) -> str:
         "",
         "## 角色判断",
         "",
-        f"- 面试官：{report.role_mapping.interviewer}",
-        f"- 候选人：{report.role_mapping.candidate}",
         f"- 置信度：{report.role_mapping.confidence:.2f}",
         f"- 判断依据：{report.role_mapping.reason}",
         "",

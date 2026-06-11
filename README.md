@@ -20,7 +20,8 @@
 ## 安装
 
 ```bash
-cd /Users/cz/github-project/interview-voice-diarizer
+git clone <repo-url>
+cd interview-voice-diarizer
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
@@ -45,7 +46,7 @@ VOLC_ARK_MODEL=你的方舟模型 Endpoint ID
 ## 使用
 
 ```bash
-ivd debrief "/path/to/录制于 2026-06-11 11.08.18.m4a" \
+ivd debrief "/path/to/recording.m4a" \
   --company "示例公司" \
   --role "后端开发" \
   --round "一面"

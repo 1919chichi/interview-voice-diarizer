@@ -11,7 +11,7 @@ from interview_voice_diarizer.models import InterviewMeta
 from interview_voice_diarizer.output.report import render_review, render_transcript, write_json
 from interview_voice_diarizer.pipeline.analysis import analyze_interview
 from interview_voice_diarizer.pipeline.audio import prepare_audio
-from interview_voice_diarizer.pipeline.transcript import normalize_asr_turns
+from interview_voice_diarizer.pipeline.transcript import normalize_asr_turns, relabel_turns
 from interview_voice_diarizer.providers.volcengine import VolcArkClient, VolcAsrClient
 
 app = typer.Typer(help="本地面试录音转写、说话人分离与复盘 CLI。")
@@ -78,8 +78,9 @@ def debrief(
         typer.echo("开始生成面试复盘...")
         report = analyze_interview(turns, meta, ark_client)
 
+        labeled_turns = relabel_turns(turns, report.role_mapping)
         write_json(target_dir / "summary.json", report.model_dump(mode="json"))
-        (target_dir / "transcript.md").write_text(render_transcript(meta, turns), encoding="utf-8")
+        (target_dir / "transcript.md").write_text(render_transcript(meta, labeled_turns), encoding="utf-8")
         (target_dir / "qa-review.md").write_text(render_review(meta, report), encoding="utf-8")
 
         typer.echo("完成：")

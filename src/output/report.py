@@ -1,13 +1,58 @@
 from __future__ import annotations
 
 import json
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 from models import DebriefReport, InterviewMeta, TranscriptTurn
 
+DERIVED_REPORT_FILES = ("summary.json", "transcript.md", "qa-review.md")
+
 
 def write_json(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def write_debrief_outputs(
+    output_dir: Path,
+    meta: InterviewMeta,
+    turns: list[TranscriptTurn],
+    report: DebriefReport,
+    *,
+    backup_existing: bool = False,
+) -> Path | None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rendered = {
+        "summary.json": json.dumps(report.model_dump(mode="json"), ensure_ascii=False, indent=2),
+        "transcript.md": render_transcript(meta, turns),
+        "qa-review.md": render_review(meta, report),
+    }
+    backup_dir = _backup_existing_reports(output_dir) if backup_existing else None
+    for name, contents in rendered.items():
+        (output_dir / name).write_text(contents, encoding="utf-8")
+    return backup_dir
+
+
+def _backup_existing_reports(output_dir: Path) -> Path | None:
+    existing = [output_dir / name for name in DERIVED_REPORT_FILES if (output_dir / name).is_file()]
+    if not existing:
+        return None
+    backups_dir = output_dir / "backups"
+    stamp = _backup_stamp()
+    backup_dir = backups_dir / f"reanalysis-{stamp}"
+    suffix = 2
+    while backup_dir.exists():
+        backup_dir = backups_dir / f"reanalysis-{stamp}-{suffix}"
+        suffix += 1
+    backup_dir.mkdir(parents=True)
+    for source in existing:
+        shutil.copy2(source, backup_dir / source.name)
+    return backup_dir
+
+
+def _backup_stamp() -> str:
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 def render_transcript(meta: InterviewMeta, turns: list[TranscriptTurn]) -> str:

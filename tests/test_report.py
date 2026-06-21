@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+
+import output.report as report_output
 from models import (
     DebriefReport,
     InterviewMeta,
@@ -74,3 +78,94 @@ def test_render_review_marks_indeterminate_single_speaker_roles() -> None:
 
     assert "- 角色状态：无法可靠判断面试官与候选人" in markdown
     assert "- Speaker 0：未知" in markdown
+
+
+def _sample_report() -> DebriefReport:
+    return DebriefReport(
+        role_mapping=RoleMapping(
+            interviewer="Speaker 1",
+            candidate="Speaker 2",
+            speaker_roles={"Speaker 1": "面试官", "Speaker 2": "候选人"},
+        )
+    )
+
+
+def test_write_debrief_outputs_does_not_create_empty_backup(tmp_path: Path) -> None:
+    backup_dir = report_output.write_debrief_outputs(
+        tmp_path,
+        InterviewMeta(company="示例公司"),
+        [TranscriptTurn(speaker="面试官", text="问题")],
+        _sample_report(),
+        backup_existing=True,
+    )
+
+    assert backup_dir is None
+    assert not (tmp_path / "backups").exists()
+    assert (
+        json.loads((tmp_path / "summary.json").read_text(encoding="utf-8"))["role_mapping"][
+            "interviewer"
+        ]
+        == "Speaker 1"
+    )
+    assert "# 示例公司 完整对话" in (tmp_path / "transcript.md").read_text(encoding="utf-8")
+
+
+def test_write_debrief_outputs_backs_up_existing_reports(monkeypatch, tmp_path: Path) -> None:
+    old_contents = {
+        "summary.json": '{"old": true}',
+        "transcript.md": "old transcript",
+        "qa-review.md": "old review",
+    }
+    for name, contents in old_contents.items():
+        (tmp_path / name).write_text(contents, encoding="utf-8")
+    monkeypatch.setattr(
+        report_output,
+        "_backup_stamp",
+        lambda: "20260621-120000",
+        raising=False,
+    )
+
+    backup_dir = report_output.write_debrief_outputs(
+        tmp_path,
+        InterviewMeta(),
+        [TranscriptTurn(speaker="面试官", text="new transcript")],
+        _sample_report(),
+        backup_existing=True,
+    )
+
+    assert backup_dir == tmp_path / "backups" / "reanalysis-20260621-120000"
+    for name, contents in old_contents.items():
+        assert (backup_dir / name).read_text(encoding="utf-8") == contents
+    assert "new transcript" in (tmp_path / "transcript.md").read_text(encoding="utf-8")
+
+
+def test_write_debrief_outputs_uses_unique_backup_directory(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        report_output,
+        "_backup_stamp",
+        lambda: "20260621-120000",
+        raising=False,
+    )
+    (tmp_path / "summary.json").write_text("first", encoding="utf-8")
+    first = report_output.write_debrief_outputs(
+        tmp_path,
+        InterviewMeta(),
+        [],
+        _sample_report(),
+        backup_existing=True,
+    )
+    (tmp_path / "summary.json").write_text("second", encoding="utf-8")
+
+    second = report_output.write_debrief_outputs(
+        tmp_path,
+        InterviewMeta(),
+        [],
+        _sample_report(),
+        backup_existing=True,
+    )
+
+    assert first is not None
+    assert second is not None
+    assert first != second
+    assert (first / "summary.json").read_text(encoding="utf-8") == "first"
+    assert (second / "summary.json").read_text(encoding="utf-8") == "second"

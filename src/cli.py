@@ -11,7 +11,11 @@ from models import InterviewMeta
 from output.report import render_review, render_transcript, write_json
 from pipeline.analysis import analyze_interview
 from pipeline.audio import prepare_audio
-from pipeline.transcript import normalize_asr_turns, relabel_turns
+from pipeline.transcript import (
+    normalize_asr_turns,
+    relabel_turns,
+    validate_speaker_normalization,
+)
 from providers.volcengine import VolcArkClient, VolcAsrClient
 
 app = typer.Typer(help="本地面试录音转写、说话人分离与复盘 CLI。")
@@ -71,6 +75,12 @@ def debrief(
 
         write_json(target_dir / "raw-asr.json", raw_asr)
         turns = normalize_asr_turns(raw_asr)
+        diagnostics = validate_speaker_normalization(raw_asr, turns)
+        typer.echo(
+            "说话人诊断："
+            f"ASR {diagnostics.raw_speaker_count} 个，"
+            f"标准化 {diagnostics.normalized_speaker_count} 个。"
+        )
         if not turns:
             raise IvdError("火山 ASR 返回中没有识别到可用文本。raw-asr.json 已保存供排查。")
 
@@ -80,7 +90,9 @@ def debrief(
 
         labeled_turns = relabel_turns(turns, report.role_mapping)
         write_json(target_dir / "summary.json", report.model_dump(mode="json"))
-        (target_dir / "transcript.md").write_text(render_transcript(meta, labeled_turns), encoding="utf-8")
+        (target_dir / "transcript.md").write_text(
+            render_transcript(meta, labeled_turns), encoding="utf-8"
+        )
         (target_dir / "qa-review.md").write_text(render_review(meta, report), encoding="utf-8")
 
         typer.echo("完成：")

@@ -23,17 +23,26 @@ def render_transcript(meta: InterviewMeta, turns: list[TranscriptTurn]) -> str:
 
 
 def render_review(meta: InterviewMeta, report: DebriefReport) -> str:
+    role_mapping = report.role_mapping
     lines = [
         f"# {meta.title} 问答复盘",
         "",
         "## 角色判断",
         "",
-        f"- 置信度：{report.role_mapping.confidence:.2f}",
-        f"- 判断依据：{report.role_mapping.reason}",
-        "",
-        "## 问题列表与回答复盘",
-        "",
+        f"- 置信度：{role_mapping.confidence:.2f}",
+        f"- 判断依据：{role_mapping.reason}",
     ]
+    if role_mapping.interviewer is None or role_mapping.candidate is None:
+        lines.append("- 角色状态：无法可靠判断面试官与候选人")
+    for speaker, role in role_mapping.speaker_roles.items():
+        lines.append(f"- {speaker}：{role}")
+    lines.extend(
+        [
+            "",
+            "## 问题列表与回答复盘",
+            "",
+        ]
+    )
     if not report.questions:
         lines.extend(["暂无明确问答对。", ""])
     for index, item in enumerate(report.questions, start=1):

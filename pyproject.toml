@@ -25,13 +25,23 @@ dev = [
 ]
 
 [project.scripts]
-ivd = "interview_voice_diarizer.cli:app"
+ivd = "cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/interview_voice_diarizer"]
+only-include = [
+  "src/cli.py",
+  "src/config.py",
+  "src/errors.py",
+  "src/models.py",
+  "src/output",
+  "src/pipeline",
+  "src/providers",
+]
+sources = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 100

@@ -40,29 +40,62 @@ def infer_roles(turns: list[TranscriptTurn]) -> RoleMapping:
     for turn in turns:
         text = turn.text
         char_counts[turn.speaker] += len(text)
-        if any(marker in text for marker in QUESTION_MARKERS):
+        is_question = any(marker in text for marker in QUESTION_MARKERS)
+        if is_question:
             question_counts[turn.speaker] += 1
-        if any(marker in text for marker in ANSWER_MARKERS):
+        elif any(marker in text for marker in ANSWER_MARKERS):
             answer_counts[turn.speaker] += 1
 
-    speakers = sorted(char_counts, key=lambda speaker: char_counts[speaker], reverse=True)
+    speakers = list(char_counts)
     if len(speakers) == 1:
-        return RoleMapping(interviewer=speakers[0], candidate=speakers[0], confidence=0.3)
+        return RoleMapping(
+            speaker_roles={speakers[0]: "未知"},
+            confidence=0.2,
+            reason="仅识别到一个说话人，无法可靠区分面试官与候选人。",
+        )
 
-    interviewer = max(
-        speakers,
-        key=lambda speaker: question_counts[speaker] - answer_counts[speaker],
+    speaker_roles: dict[str, str] = {}
+    for speaker in speakers:
+        if question_counts[speaker] > answer_counts[speaker]:
+            speaker_roles[speaker] = "面试官"
+        elif answer_counts[speaker] > question_counts[speaker]:
+            speaker_roles[speaker] = "候选人"
+        else:
+            speaker_roles[speaker] = "未知"
+
+    if "面试官" not in speaker_roles.values():
+        interviewer = max(
+            speakers,
+            key=lambda speaker: question_counts[speaker] - answer_counts[speaker],
+        )
+        speaker_roles[interviewer] = "面试官"
+    if "候选人" not in speaker_roles.values():
+        interviewer_speakers = {
+            speaker for speaker, role in speaker_roles.items() if role == "面试官"
+        }
+        candidates = [speaker for speaker in speakers if speaker not in interviewer_speakers]
+        if candidates:
+            candidate = max(
+                candidates,
+                key=lambda speaker: answer_counts[speaker] + char_counts[speaker] / 500,
+            )
+            speaker_roles[candidate] = "候选人"
+
+    interviewer = next(
+        (speaker for speaker in speakers if speaker_roles[speaker] == "面试官"),
+        None,
     )
-    candidate = max(
-        [speaker for speaker in speakers if speaker != interviewer],
-        key=lambda speaker: answer_counts[speaker] + char_counts[speaker] / 500,
+    candidate = next(
+        (speaker for speaker in speakers if speaker_roles[speaker] == "候选人"),
+        None,
     )
     confidence = 0.75 if question_counts[interviewer] > 0 else 0.55
     return RoleMapping(
         interviewer=interviewer,
         candidate=candidate,
+        speaker_roles=speaker_roles,
         confidence=confidence,
-        reason="面试官通常提问更多，候选人通常回答更长且包含项目/负责/实现等表述。",
+        reason="按每个 Speaker 的提问与回答证据聚合，多个声纹簇可以归属于同一角色。",
     )
 
 
@@ -89,12 +122,20 @@ def analyze_interview(
         },
     ]
     data = ark_client.chat_json(messages)
+    compatible = _compatible_report_data(data)
+    model_role_mapping = compatible.pop("role_mapping", None)
+    merged = fallback.model_dump()
+    merged.update(compatible)
     try:
-        return DebriefReport.model_validate(data)
+        report = DebriefReport.model_validate(merged)
     except ValidationError:
-        merged = fallback.model_dump()
-        merged.update(_compatible_report_data(data))
-        return DebriefReport.model_validate(merged)
+        report = fallback
+    report.role_mapping = _validated_role_mapping(
+        model_role_mapping,
+        turns=turns,
+        fallback=fallback.role_mapping,
+    )
+    return report
 
 
 def heuristic_report(turns: list[TranscriptTurn]) -> DebriefReport:
@@ -127,7 +168,7 @@ def _group_question_answers(
     current_question: str | None = None
     answer_parts: list[str] = []
     for turn in turns:
-        is_interviewer_question = turn.speaker == roles.interviewer and any(
+        is_interviewer_question = roles.role_for(turn.speaker) == "面试官" and any(
             marker in turn.text for marker in QUESTION_MARKERS
         )
         if is_interviewer_question:
@@ -137,7 +178,7 @@ def _group_question_answers(
                 )
             current_question = turn.text
             answer_parts = []
-        elif current_question and turn.speaker == roles.candidate:
+        elif current_question and roles.role_for(turn.speaker) == "候选人":
             answer_parts.append(turn.text)
     if current_question:
         pairs.append({"question": current_question, "answer": "\n".join(answer_parts).strip()})
@@ -157,6 +198,10 @@ def _analysis_prompt(
   "role_mapping": {{
     "interviewer": "Speaker 0",
     "candidate": "Speaker 1",
+    "speaker_roles": {{
+      "Speaker 0": "面试官",
+      "Speaker 1": "候选人"
+    }},
     "confidence": 0.0,
     "reason": "判断依据"
   }},
@@ -177,6 +222,9 @@ def _analysis_prompt(
 启发式初判：
 {fallback.role_mapping.model_dump_json(ensure_ascii=False)}
 
+只能使用转写中实际存在的 Speaker 标识。多个 Speaker 可以映射到同一角色；
+无法判断的 Speaker 使用“未知”，不得给 Speaker 标识添加括号或解释文字。
+
 转写文本：
 {transcript_as_text(turns, max_chars=60000)}
 """.strip()
@@ -192,3 +240,65 @@ def _compatible_report_data(data: dict[str, Any]) -> dict[str, Any]:
         if isinstance(data.get(key), list):
             result[key] = data[key]
     return result
+
+
+def _validated_role_mapping(
+    value: Any,
+    turns: list[TranscriptTurn],
+    fallback: RoleMapping,
+) -> RoleMapping:
+    if not isinstance(value, dict):
+        return fallback
+    try:
+        candidate = RoleMapping.model_validate(value)
+    except ValidationError:
+        return fallback
+
+    known_speakers = list(dict.fromkeys(turn.speaker for turn in turns))
+    known_set = set(known_speakers)
+    anchors = (candidate.interviewer, candidate.candidate)
+    if any(anchor is not None and anchor not in known_set for anchor in anchors):
+        return fallback
+    if not set(candidate.speaker_roles).issubset(known_set):
+        return fallback
+
+    speaker_roles = dict(fallback.speaker_roles)
+    speaker_roles.update(candidate.speaker_roles)
+    for speaker in known_speakers:
+        speaker_roles.setdefault(speaker, "未知")
+
+    if candidate.interviewer is not None:
+        existing = candidate.speaker_roles.get(candidate.interviewer)
+        if existing not in {None, "面试官"}:
+            return fallback
+        speaker_roles[candidate.interviewer] = "面试官"
+    if candidate.candidate is not None:
+        existing = candidate.speaker_roles.get(candidate.candidate)
+        if existing not in {None, "候选人"}:
+            return fallback
+        speaker_roles[candidate.candidate] = "候选人"
+
+    if len(known_speakers) < 2:
+        if {"面试官", "候选人"} & set(speaker_roles.values()):
+            return fallback
+    elif not {"面试官", "候选人"}.issubset(set(speaker_roles.values())):
+        return fallback
+
+    interviewer = candidate.interviewer or next(
+        (speaker for speaker in known_speakers if speaker_roles[speaker] == "面试官"),
+        None,
+    )
+    candidate_speaker = candidate.candidate or next(
+        (speaker for speaker in known_speakers if speaker_roles[speaker] == "候选人"),
+        None,
+    )
+    try:
+        return RoleMapping(
+            interviewer=interviewer,
+            candidate=candidate_speaker,
+            speaker_roles=speaker_roles,
+            confidence=candidate.confidence,
+            reason=candidate.reason,
+        )
+    except ValidationError:
+        return fallback

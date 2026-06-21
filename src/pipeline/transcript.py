@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
-from models import RoleMapping, TranscriptTurn
+from errors import IvdError
+from models import RoleMapping, SpeakerDiagnostics, TranscriptTurn
 
 
 def normalize_asr_turns(raw: dict[str, Any]) -> list[TranscriptTurn]:
@@ -13,13 +15,41 @@ def normalize_asr_turns(raw: dict[str, Any]) -> list[TranscriptTurn]:
 
     text = _find_text(raw)
     if text:
-        return [TranscriptTurn(speaker="Speaker 0", text=text.strip())]
+        return [TranscriptTurn(speaker="Speaker unknown", text=text.strip())]
     return []
 
 
+def collect_speaker_diagnostics(
+    raw: dict[str, Any], turns: list[TranscriptTurn]
+) -> SpeakerDiagnostics:
+    utterances = _find_utterances(raw)
+    raw_counts = Counter(_speaker_label(_extract_speaker(item)) for item in utterances)
+    normalized_counts = Counter(turn.speaker for turn in turns)
+    return SpeakerDiagnostics(
+        raw_counts=dict(raw_counts),
+        normalized_counts=dict(normalized_counts),
+    )
+
+
+def validate_speaker_normalization(
+    raw: dict[str, Any], turns: list[TranscriptTurn]
+) -> SpeakerDiagnostics:
+    diagnostics = collect_speaker_diagnostics(raw, turns)
+    raw_count = diagnostics.raw_speaker_count
+    normalized_count = diagnostics.normalized_speaker_count
+    if raw_count >= 2 and normalized_count < 2:
+        raise IvdError(
+            "说话人标准化异常："
+            f"ASR 原始结果包含 {raw_count} 个说话人，标准化后只剩 {normalized_count} 个。"
+        )
+    return diagnostics
+
+
 def relabel_turns(turns: list[TranscriptTurn], roles: RoleMapping) -> list[TranscriptTurn]:
-    label_map = {roles.interviewer: "面试官", roles.candidate: "候选人"}
-    return [turn.model_copy(update={"speaker": label_map.get(turn.speaker, turn.speaker)}) for turn in turns]
+    return [
+        turn.model_copy(update={"speaker": roles.role_for(turn.speaker) or turn.speaker})
+        for turn in turns
+    ]
 
 
 def transcript_as_text(turns: list[TranscriptTurn], max_chars: int | None = None) -> str:
@@ -36,20 +66,46 @@ def transcript_as_text(turns: list[TranscriptTurn], max_chars: int | None = None
 
 
 def _turn_from_utterance(item: dict[str, Any]) -> TranscriptTurn:
-    speaker = item.get("speaker") or item.get("speaker_id") or item.get("speakerId")
-    if speaker is None:
-        speaker = item.get("spk") or item.get("user_id") or 0
-    speaker_label = str(speaker)
-    if not speaker_label.lower().startswith("speaker"):
-        speaker_label = f"Speaker {speaker_label}"
     return TranscriptTurn(
-        speaker=speaker_label,
-        text=str(item.get("text") or item.get("utterance") or item.get("sentence") or "").strip(),
-        start_ms=_optional_int(
-            item.get("start_time") or item.get("start") or item.get("begin_time")
-        ),
-        end_ms=_optional_int(item.get("end_time") or item.get("end") or item.get("end_time")),
+        speaker=_speaker_label(_extract_speaker(item)),
+        text=str(_first_present(item, "text", "utterance", "sentence") or "").strip(),
+        start_ms=_optional_int(_first_present(item, "start_time", "start", "begin_time")),
+        end_ms=_optional_int(_first_present(item, "end_time", "end")),
     )
+
+
+def _extract_speaker(item: dict[str, Any]) -> Any:
+    speaker = _first_present(item, "speaker", "speaker_id", "speakerId", "spk", "user_id")
+    if speaker is not None:
+        return speaker
+    additions = item.get("additions")
+    if isinstance(additions, dict):
+        return _first_present(
+            additions,
+            "speaker",
+            "speaker_id",
+            "speakerId",
+            "spk",
+            "user_id",
+        )
+    return None
+
+
+def _speaker_label(speaker: Any) -> str:
+    if speaker is None or str(speaker).strip() == "":
+        return "Speaker unknown"
+    speaker_label = str(speaker).strip()
+    if speaker_label.lower().startswith("speaker"):
+        return speaker_label
+    return f"Speaker {speaker_label}"
+
+
+def _first_present(value: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        candidate = value.get(key)
+        if candidate is not None:
+            return candidate
+    return None
 
 
 def _find_utterances(value: Any) -> list[dict[str, Any]]:

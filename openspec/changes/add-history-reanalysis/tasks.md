@@ -19,4 +19,4 @@
 - [x] 4.1 对两份历史 `raw-asr.json` 执行安全重分析并保留旧报告备份
 - [x] 4.2 验证 Speaker 基数、角色标签、原始 JSON 校验和备份完整性
 - [x] 4.3 运行 pytest、Ruff、CLI 帮助、wheel 构建和 OpenSpec 校验
-- [ ] 4.4 提交并推送现有草稿 PR 更新
+- [x] 4.4 提交并推送现有草稿 PR 更新

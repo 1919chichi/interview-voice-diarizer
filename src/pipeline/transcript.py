@@ -8,6 +8,7 @@ from models import RoleMapping, SpeakerDiagnostics, TranscriptTurn
 
 
 def normalize_asr_turns(raw: dict[str, Any]) -> list[TranscriptTurn]:
+    """将 ASR 原始响应解析为标准 TranscriptTurn 列表，优先使用 utterances，退化为纯文本。"""
     utterances = _find_utterances(raw)
     if utterances:
         turns = [_turn_from_utterance(item) for item in utterances]
@@ -22,6 +23,7 @@ def normalize_asr_turns(raw: dict[str, Any]) -> list[TranscriptTurn]:
 def collect_speaker_diagnostics(
     raw: dict[str, Any], turns: list[TranscriptTurn]
 ) -> SpeakerDiagnostics:
+    """统计原始 ASR 和标准化后的说话人分布，用于诊断展示。"""
     utterances = _find_utterances(raw)
     raw_counts = Counter(_speaker_label(_extract_speaker(item)) for item in utterances)
     normalized_counts = Counter(turn.speaker for turn in turns)
@@ -34,6 +36,7 @@ def collect_speaker_diagnostics(
 def validate_speaker_normalization(
     raw: dict[str, Any], turns: list[TranscriptTurn]
 ) -> SpeakerDiagnostics:
+    """校验标准化后的说话人数量未发生异常折叠，多说话人被合并为一个时抛出 IvdError。"""
     diagnostics = collect_speaker_diagnostics(raw, turns)
     raw_count = diagnostics.raw_speaker_count
     normalized_count = diagnostics.normalized_speaker_count
@@ -46,6 +49,7 @@ def validate_speaker_normalization(
 
 
 def relabel_turns(turns: list[TranscriptTurn], roles: RoleMapping) -> list[TranscriptTurn]:
+    """按角色映射将 turns 中的说话人 ID 替换为角色名（面试官/候选人）。"""
     return [
         turn.model_copy(update={"speaker": roles.role_for(turn.speaker) or turn.speaker})
         for turn in turns
@@ -53,6 +57,7 @@ def relabel_turns(turns: list[TranscriptTurn], roles: RoleMapping) -> list[Trans
 
 
 def transcript_as_text(turns: list[TranscriptTurn], max_chars: int | None = None) -> str:
+    """将 turns 渲染为 "说话人: 文本" 纯文本，超过 max_chars 时截断并附加省略提示。"""
     lines = []
     total = 0
     for turn in turns:
@@ -66,6 +71,7 @@ def transcript_as_text(turns: list[TranscriptTurn], max_chars: int | None = None
 
 
 def _turn_from_utterance(item: dict[str, Any]) -> TranscriptTurn:
+    """将单条 ASR utterance 字典转换为 TranscriptTurn，兼容多种字段命名方案。"""
     return TranscriptTurn(
         speaker=_speaker_label(_extract_speaker(item)),
         text=str(_first_present(item, "text", "utterance", "sentence") or "").strip(),
@@ -75,6 +81,7 @@ def _turn_from_utterance(item: dict[str, Any]) -> TranscriptTurn:
 
 
 def _extract_speaker(item: dict[str, Any]) -> Any:
+    """从 utterance 字典中提取说话人 ID，同时检查顶层字段和 additions 子字典。"""
     speaker = _first_present(item, "speaker", "speaker_id", "speakerId", "spk", "user_id")
     if speaker is not None:
         return speaker
@@ -92,6 +99,7 @@ def _extract_speaker(item: dict[str, Any]) -> Any:
 
 
 def _speaker_label(speaker: Any) -> str:
+    """将说话人原始值规范化为 'Speaker X' 格式，为空时返回 'Speaker unknown'。"""
     if speaker is None or str(speaker).strip() == "":
         return "Speaker unknown"
     speaker_label = str(speaker).strip()
@@ -101,6 +109,7 @@ def _speaker_label(speaker: Any) -> str:
 
 
 def _first_present(value: dict[str, Any], *keys: str) -> Any:
+    """返回字典中第一个非 None 值，所有 key 均缺失时返回 None。"""
     for key in keys:
         candidate = value.get(key)
         if candidate is not None:
@@ -109,6 +118,7 @@ def _first_present(value: dict[str, Any], *keys: str) -> Any:
 
 
 def _find_utterances(value: Any) -> list[dict[str, Any]]:
+    """递归遍历 ASR 响应树，查找第一个 utterances/segments/sentences 列表。"""
     if isinstance(value, dict):
         for key in ("utterances", "utterance", "segments", "sentences"):
             candidate = value.get(key)
@@ -127,6 +137,7 @@ def _find_utterances(value: Any) -> list[dict[str, Any]]:
 
 
 def _looks_like_utterances(value: Any) -> bool:
+    """判断一个值是否为包含文本字段的 utterance 列表。"""
     return (
         isinstance(value, list)
         and bool(value)
@@ -136,6 +147,7 @@ def _looks_like_utterances(value: Any) -> bool:
 
 
 def _find_text(value: Any) -> str | None:
+    """递归遍历 ASR 响应树，查找 text/result_text/transcript 纯文本字段。"""
     if isinstance(value, dict):
         for key in ("text", "result_text", "transcript"):
             candidate = value.get(key)
@@ -154,6 +166,7 @@ def _find_text(value: Any) -> str | None:
 
 
 def _optional_int(value: Any) -> int | None:
+    """将值安全转换为 int，None 或无法转换时返回 None。"""
     if value is None:
         return None
     try:

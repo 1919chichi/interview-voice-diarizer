@@ -40,6 +40,11 @@ tests/                  # pytest 单元测试与 CLI 行为测试
 - 未指定 `--skip-analysis` 时使用方舟生成完整复盘；指定后只运行本地启发式分析。
 - 历史重分析只覆盖 `summary.json`、`transcript.md`、`qa-review.md`，覆盖前将已有派生报告备份到 `backups/reanalysis-<时间戳>/`；不得修改 `raw-asr.json`、录音或转码文件。
 
+## 代码注释约定
+- **每个函数（含方法、属性、静态方法）都必须有 docstring**，放在函数体第一行。
+- docstring 使用中文，一行说明即可；说清楚该函数**做什么、边界条件或副作用**。
+- 新增或修改函数时，必须同步添加或更新 docstring，不得留空。
+
 ## 开发约定
 - 新增外部服务客户端放入 `providers/`；新增处理步骤放入 `pipeline/`；新增输出格式放入 `output/`。
 - `models.py`、`errors.py`、`config.py` 是基础层，不得反向依赖 `pipeline/`、`providers/` 或 `output/`。

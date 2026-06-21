@@ -26,10 +26,12 @@ class VolcArkConfig:
 
 
 def load_environment() -> None:
+    """从 .env 文件加载环境变量。"""
     load_dotenv()
 
 
 def require_env(name: str) -> str:
+    """读取必要环境变量，缺失或为空时抛出 ConfigError。"""
     value = os.getenv(name)
     if not value:
         raise ConfigError(f"缺少环境变量 {name}。请复制 .env.example 为 .env 并填写。")
@@ -37,6 +39,7 @@ def require_env(name: str) -> str:
 
 
 def load_asr_config() -> VolcAsrConfig:
+    """从环境变量构建火山 ASR 配置。"""
     return VolcAsrConfig(
         api_key=require_env("VOLC_ASR_API_KEY"),
         resource_id=os.getenv("VOLC_ASR_RESOURCE_ID", "volc.seedasr.auc"),
@@ -45,6 +48,7 @@ def load_asr_config() -> VolcAsrConfig:
 
 
 def load_ark_config() -> VolcArkConfig:
+    """从环境变量构建火山方舟 LLM 配置。"""
     return VolcArkConfig(
         api_key=require_env("VOLC_ARK_API_KEY"),
         model=require_env("VOLC_ARK_MODEL"),

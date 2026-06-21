@@ -27,6 +27,7 @@ class ProcessedDebrief:
 
 
 def load_raw_asr(path: Path) -> dict[str, Any]:
+    """从历史 raw-asr.json 文件加载原始 ASR 结果，文件不存在或格式非法时抛出 IvdError。"""
     path = path.expanduser().resolve()
     if not path.exists():
         raise IvdError(f"历史 ASR 文件不存在：{path}")
@@ -48,6 +49,7 @@ def process_raw_asr(
     meta: InterviewMeta,
     ark_client: VolcArkClient | None,
 ) -> ProcessedDebrief:
+    """对 ASR 原始结果执行完整后处理：标准化、校验、分析、角色重标记，返回 ProcessedDebrief。"""
     turns = normalize_asr_turns(raw_asr)
     diagnostics = validate_speaker_normalization(raw_asr, turns)
     if not turns:

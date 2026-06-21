@@ -44,6 +44,7 @@ def debrief(
         typer.Option("--skip-analysis", help="跳过方舟模型分析，只生成启发式复盘。"),
     ] = False,
 ) -> None:
+    """执行完整面试复盘流程：识别录音、生成转写和分析报告。"""
     load_environment()
     try:
         meta = InterviewMeta(company=company, role=role, round_name=round_name)
@@ -101,6 +102,7 @@ def reanalyze(
         typer.Option("--skip-analysis", help="跳过方舟模型分析，只生成启发式复盘。"),
     ] = False,
 ) -> None:
+    """从历史 raw-asr.json 重新生成面试复盘，不重新调用 ASR。"""
     load_environment()
     try:
         source_path = raw_asr_path.expanduser().resolve()
@@ -131,6 +133,7 @@ def reanalyze(
 
 
 def _echo_diagnostics(processed: ProcessedDebrief) -> None:
+    """打印说话人诊断信息到终端。"""
     diagnostics = processed.diagnostics
     typer.echo(
         "说话人诊断："
@@ -140,6 +143,7 @@ def _echo_diagnostics(processed: ProcessedDebrief) -> None:
 
 
 def _echo_report_paths(target_dir: Path) -> None:
+    """打印生成的报告文件路径到终端。"""
     typer.echo("完成：")
     typer.echo(f"- {target_dir / 'transcript.md'}")
     typer.echo(f"- {target_dir / 'qa-review.md'}")
@@ -147,6 +151,7 @@ def _echo_report_paths(target_dir: Path) -> None:
 
 
 def _resolve_output_dir(audio_path: Path, output_dir: Path | None) -> Path:
+    """根据录音路径或用户指定推导输出目录。"""
     if output_dir:
         return output_dir.expanduser().resolve()
     stem = audio_path.expanduser().name
@@ -156,6 +161,7 @@ def _resolve_output_dir(audio_path: Path, output_dir: Path | None) -> Path:
 
 
 def _guess_audio_format(audio_url: str) -> str:
+    """从 URL 后缀猜测音频格式，未识别时回退到 mp3。"""
     suffix = audio_url.rsplit("?", 1)[0].rsplit(".", 1)[-1].lower()
     if suffix in {"wav", "mp3", "ogg"}:
         return suffix

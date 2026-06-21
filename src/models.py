@@ -28,14 +28,17 @@ class SpeakerDiagnostics(BaseModel):
 
     @property
     def raw_speaker_count(self) -> int:
+        """原始 ASR 中识别到的有效说话人数量（不含 Speaker unknown）。"""
         return self._known_speaker_count(self.raw_counts)
 
     @property
     def normalized_speaker_count(self) -> int:
+        """标准化后的有效说话人数量（不含 Speaker unknown）。"""
         return self._known_speaker_count(self.normalized_counts)
 
     @staticmethod
     def _known_speaker_count(counts: dict[str, int]) -> int:
+        """统计 counts 中非 'Speaker unknown' 的说话人数。"""
         return sum(speaker != "Speaker unknown" for speaker in counts)
 
 
@@ -48,11 +51,13 @@ class RoleMapping(BaseModel):
 
     @model_validator(mode="after")
     def validate_distinct_anchors(self) -> RoleMapping:
+        """校验面试官和候选人不能是同一个 Speaker。"""
         if self.interviewer is not None and self.interviewer == self.candidate:
             raise ValueError("同一个 Speaker 不能同时作为面试官和候选人")
         return self
 
     def role_for(self, speaker: str) -> str | None:
+        """查询指定说话人对应的角色标签，优先返回 speaker_roles 映射中的值。"""
         role = self.speaker_roles.get(speaker)
         if role in {"面试官", "候选人"}:
             return role
@@ -86,5 +91,6 @@ class InterviewMeta(BaseModel):
 
     @property
     def title(self) -> str:
+        """格式化面试标题，未填写任何信息时返回默认值"面试复盘"。"""
         parts = [self.company, self.role, self.round_name]
         return " / ".join(part for part in parts if part) or "面试复盘"

@@ -13,6 +13,7 @@ CONVERTIBLE_FORMATS = {"m4a", "qma", "mp4", "aac", "flac"}
 
 
 def ensure_audio_tools() -> None:
+    """检查 ffmpeg 和 ffprobe 是否可用，缺失时抛出 AudioError。"""
     missing = [tool for tool in ("ffmpeg", "ffprobe") if shutil.which(tool) is None]
     if missing:
         joined = ", ".join(missing)
@@ -20,6 +21,7 @@ def ensure_audio_tools() -> None:
 
 
 def probe_audio(path: Path) -> dict:
+    """调用 ffprobe 获取音频文件的元数据（格式、流信息等）。"""
     ensure_audio_tools()
     result = subprocess.run(
         [
@@ -45,6 +47,7 @@ def probe_audio(path: Path) -> dict:
 
 
 def prepare_audio(source_path: Path, output_dir: Path) -> PreparedAudio:
+    """校验录音文件格式并按需转码为 MP3，返回上传就绪的 PreparedAudio。"""
     source_path = source_path.expanduser().resolve()
     if not source_path.exists():
         raise AudioError(f"录音文件不存在：{source_path}")
@@ -83,6 +86,7 @@ def prepare_audio(source_path: Path, output_dir: Path) -> PreparedAudio:
 
 
 def convert_to_mp3(source_path: Path, target_path: Path, channels: int = 1) -> None:
+    """使用 ffmpeg 将音频转码为 16kHz、64kbps MP3，声道数钳制在 1-2 之间。"""
     ensure_audio_tools()
     channels = min(max(channels, 1), 2)
     result = subprocess.run(
@@ -111,6 +115,7 @@ def convert_to_mp3(source_path: Path, target_path: Path, channels: int = 1) -> N
 
 
 def _duration_seconds(metadata: dict) -> float | None:
+    """从 ffprobe 元数据中提取时长（秒），解析失败时返回 None。"""
     raw = metadata.get("format", {}).get("duration")
     if not raw:
         return None
@@ -121,6 +126,7 @@ def _duration_seconds(metadata: dict) -> float | None:
 
 
 def _audio_channels(metadata: dict) -> int:
+    """从 ffprobe 元数据中读取声道数，钳制在 1-2 之间，读取失败时返回 1。"""
     streams = metadata.get("streams", [])
     for stream in streams:
         if not isinstance(stream, dict):
@@ -136,6 +142,7 @@ def _audio_channels(metadata: dict) -> int:
 
 
 def _probe_error(path: Path, stderr: str) -> str:
+    """生成 ffprobe 失败时的用户友好错误消息，.qma 文件给出专属提示。"""
     if path.suffix.lower() == ".qma":
         return (
             f"ffprobe 无法识别 .qma 文件：{path}。"
@@ -145,6 +152,7 @@ def _probe_error(path: Path, stderr: str) -> str:
 
 
 def _convert_error(path: Path, stderr: str) -> str:
+    """生成 ffmpeg 转码失败时的用户友好错误消息，.qma 文件给出专属提示。"""
     if path.suffix.lower() == ".qma":
         return (
             f"ffmpeg 无法解码 .qma 文件：{path}。"

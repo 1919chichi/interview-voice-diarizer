@@ -134,15 +134,18 @@ class VolcArkClient:
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
         }
-        response = httpx.post(
-            url,
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {self.config.api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=self.timeout,
-        )
+        try:
+            response = httpx.post(
+                url,
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {self.config.api_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=self.timeout,
+            )
+        except httpx.TimeoutException as exc:
+            raise ApiError(f"方舟分析超时：等待超过 {int(self.timeout)} 秒。") from exc
         if response.status_code >= 400:
             raise ApiError(f"方舟分析失败：HTTP {response.status_code} {response.text[:300]}")
         data = response.json()

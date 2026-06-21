@@ -8,14 +8,9 @@ import typer
 from config import load_ark_config, load_asr_config, load_environment
 from errors import IvdError
 from models import InterviewMeta
-from output.report import render_review, render_transcript, write_json
-from pipeline.analysis import analyze_interview
+from output.report import write_debrief_outputs, write_json
 from pipeline.audio import prepare_audio
-from pipeline.transcript import (
-    normalize_asr_turns,
-    relabel_turns,
-    validate_speaker_normalization,
-)
+from pipeline.debrief import ProcessedDebrief, load_raw_asr, process_raw_asr
 from providers.volcengine import VolcArkClient, VolcAsrClient
 
 app = typer.Typer(help="本地面试录音转写、说话人分离与复盘 CLI。")
@@ -74,35 +69,81 @@ def debrief(
             raise IvdError("--mode 只支持 flash 或 standard。")
 
         write_json(target_dir / "raw-asr.json", raw_asr)
-        turns = normalize_asr_turns(raw_asr)
-        diagnostics = validate_speaker_normalization(raw_asr, turns)
-        typer.echo(
-            "说话人诊断："
-            f"ASR {diagnostics.raw_speaker_count} 个，"
-            f"标准化 {diagnostics.normalized_speaker_count} 个。"
-        )
-        if not turns:
-            raise IvdError("火山 ASR 返回中没有识别到可用文本。raw-asr.json 已保存供排查。")
-
         ark_client = None if skip_analysis else VolcArkClient(load_ark_config())
         typer.echo("开始生成面试复盘...")
-        report = analyze_interview(turns, meta, ark_client)
-
-        labeled_turns = relabel_turns(turns, report.role_mapping)
-        write_json(target_dir / "summary.json", report.model_dump(mode="json"))
-        (target_dir / "transcript.md").write_text(
-            render_transcript(meta, labeled_turns), encoding="utf-8"
+        processed = process_raw_asr(raw_asr, meta, ark_client)
+        _echo_diagnostics(processed)
+        write_debrief_outputs(
+            target_dir,
+            meta,
+            processed.labeled_turns,
+            processed.report,
         )
-        (target_dir / "qa-review.md").write_text(render_review(meta, report), encoding="utf-8")
-
-        typer.echo("完成：")
-        typer.echo(f"- {target_dir / 'transcript.md'}")
-        typer.echo(f"- {target_dir / 'qa-review.md'}")
-        typer.echo(f"- {target_dir / 'summary.json'}")
+        _echo_report_paths(target_dir)
         typer.echo(f"- {target_dir / 'raw-asr.json'}")
     except IvdError as exc:
         typer.secho(f"错误：{exc}", fg=typer.colors.RED)
         raise typer.Exit(code=1) from exc
+
+
+@app.command()
+def reanalyze(
+    raw_asr_path: Annotated[Path, typer.Argument(help="历史 raw-asr.json 文件路径。")],
+    company: Annotated[str | None, typer.Option("--company", "-c", help="公司名。")] = None,
+    role: Annotated[str | None, typer.Option("--role", "-r", help="岗位名。")] = None,
+    round_name: Annotated[str | None, typer.Option("--round", help="面试轮次。")] = None,
+    output_dir: Annotated[
+        Path | None,
+        typer.Option("--output-dir", "-o", help="输出目录，默认 raw-asr.json 所在目录。"),
+    ] = None,
+    skip_analysis: Annotated[
+        bool,
+        typer.Option("--skip-analysis", help="跳过方舟模型分析，只生成启发式复盘。"),
+    ] = False,
+) -> None:
+    load_environment()
+    try:
+        source_path = raw_asr_path.expanduser().resolve()
+        target_dir = (
+            output_dir.expanduser().resolve() if output_dir is not None else source_path.parent
+        )
+        typer.echo(f"历史 ASR：{source_path}")
+        typer.echo(f"输出目录：{target_dir}")
+        raw_asr = load_raw_asr(source_path)
+        meta = InterviewMeta(company=company, role=role, round_name=round_name)
+        ark_client = None if skip_analysis else VolcArkClient(load_ark_config())
+        typer.echo("开始重新生成面试复盘（不会调用 ASR）...")
+        processed = process_raw_asr(raw_asr, meta, ark_client)
+        _echo_diagnostics(processed)
+        backup_dir = write_debrief_outputs(
+            target_dir,
+            meta,
+            processed.labeled_turns,
+            processed.report,
+            backup_existing=True,
+        )
+        if backup_dir is not None:
+            typer.echo(f"旧报告备份：{backup_dir}")
+        _echo_report_paths(target_dir)
+    except IvdError as exc:
+        typer.secho(f"错误：{exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1) from exc
+
+
+def _echo_diagnostics(processed: ProcessedDebrief) -> None:
+    diagnostics = processed.diagnostics
+    typer.echo(
+        "说话人诊断："
+        f"ASR {diagnostics.raw_speaker_count} 个，"
+        f"标准化 {diagnostics.normalized_speaker_count} 个。"
+    )
+
+
+def _echo_report_paths(target_dir: Path) -> None:
+    typer.echo("完成：")
+    typer.echo(f"- {target_dir / 'transcript.md'}")
+    typer.echo(f"- {target_dir / 'qa-review.md'}")
+    typer.echo(f"- {target_dir / 'summary.json'}")
 
 
 def _resolve_output_dir(audio_path: Path, output_dir: Path | None) -> Path:

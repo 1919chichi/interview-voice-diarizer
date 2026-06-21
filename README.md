@@ -7,7 +7,8 @@
 - 支持本地 `.m4a`、`.qma`、`.wav`、`.mp3`、`.ogg` 输入。
 - 对火山不直接支持的格式，使用 `ffmpeg` 转为 `.mp3` 后上传。
 - 调用火山语音识别 API，开启说话人分离与 utterance 输出。
-- 自动推断 `Speaker 0 / Speaker 1` 分别对应面试官和候选人。
+- 自动推断每个 Speaker 对应面试官、候选人或未知角色，并支持多个声纹簇归属于同一角色。
+- 支持从历史 `raw-asr.json` 重新生成报告，无需再次调用 ASR。
 - 输出本地 Markdown 和 JSON 文件。
 
 ## 环境要求
@@ -62,6 +63,34 @@ outputs/<录音文件名>/
 ├── transcript.md
 └── qa-review.md
 ```
+
+### 重新分析历史 ASR 结果
+
+历史目录保留了 `raw-asr.json` 时，可以直接应用最新的 Speaker 和角色判断逻辑：
+
+```bash
+ivd reanalyze "outputs/<录音文件名>/raw-asr.json" \
+  --company "示例公司" \
+  --role "后端开发" \
+  --round "一面"
+```
+
+该命令不会调用 ASR。默认仍会调用方舟重新生成完整复盘；使用下面的参数可执行完全本地的启发式修复：
+
+```bash
+ivd reanalyze "outputs/<录音文件名>/raw-asr.json" --skip-analysis
+```
+
+覆盖报告前，现有派生文件会备份到：
+
+```text
+outputs/<录音文件名>/backups/reanalysis-YYYYMMDD-HHMMSS/
+├── summary.json
+├── transcript.md
+└── qa-review.md
+```
+
+原始 `raw-asr.json`、录音和转码文件不会被修改。
 
 ## `.qma` 说明
 

@@ -57,6 +57,7 @@ def prepare_audio(source_path: Path, output_dir: Path) -> PreparedAudio:
 
     metadata = probe_audio(source_path)
     duration = _duration_seconds(metadata)
+    channels = _audio_channels(metadata)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     if suffix in DIRECT_UPLOAD_FORMATS:
@@ -66,21 +67,24 @@ def prepare_audio(source_path: Path, output_dir: Path) -> PreparedAudio:
             audio_format=suffix,
             converted=False,
             duration_seconds=duration,
+            channels=channels,
         )
 
     converted_path = output_dir / "converted.mp3"
-    convert_to_mp3(source_path, converted_path)
+    convert_to_mp3(source_path, converted_path, channels=channels)
     return PreparedAudio(
         source_path=source_path,
         upload_path=converted_path,
         audio_format="mp3",
         converted=True,
         duration_seconds=duration,
+        channels=channels,
     )
 
 
-def convert_to_mp3(source_path: Path, target_path: Path) -> None:
+def convert_to_mp3(source_path: Path, target_path: Path, channels: int = 1) -> None:
     ensure_audio_tools()
+    channels = min(max(channels, 1), 2)
     result = subprocess.run(
         [
             "ffmpeg",
@@ -89,7 +93,7 @@ def convert_to_mp3(source_path: Path, target_path: Path) -> None:
             str(source_path),
             "-vn",
             "-ac",
-            "1",
+            str(channels),
             "-ar",
             "16000",
             "-codec:a",
@@ -114,6 +118,21 @@ def _duration_seconds(metadata: dict) -> float | None:
         return float(raw)
     except ValueError:
         return None
+
+
+def _audio_channels(metadata: dict) -> int:
+    streams = metadata.get("streams", [])
+    for stream in streams:
+        if not isinstance(stream, dict):
+            continue
+        if stream.get("codec_type") not in {None, "audio"}:
+            continue
+        try:
+            channels = int(stream.get("channels", 1))
+        except (TypeError, ValueError):
+            continue
+        return min(max(channels, 1), 2)
+    return 1
 
 
 def _probe_error(path: Path, stderr: str) -> str:

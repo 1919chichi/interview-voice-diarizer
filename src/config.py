@@ -23,6 +23,8 @@ class VolcArkConfig:
     api_key: str
     model: str
     base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
+    timeout_seconds: float = 600.0
+    max_tokens: int = 16000
 
 
 def load_environment() -> None:
@@ -36,6 +38,34 @@ def require_env(name: str) -> str:
     if not value:
         raise ConfigError(f"缺少环境变量 {name}。请复制 .env.example 为 .env 并填写。")
     return value
+
+
+def optional_float_env(name: str, default: float) -> float:
+    """读取可选浮点环境变量，缺失时返回默认值，格式非法或非正数时抛出 ConfigError。"""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise ConfigError(f"环境变量 {name} 必须是数字。") from exc
+    if parsed <= 0:
+        raise ConfigError(f"环境变量 {name} 必须大于 0。")
+    return parsed
+
+
+def optional_int_env(name: str, default: int) -> int:
+    """读取可选整数环境变量，缺失时返回默认值，格式非法或非正数时抛出 ConfigError。"""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ConfigError(f"环境变量 {name} 必须是整数。") from exc
+    if parsed <= 0:
+        raise ConfigError(f"环境变量 {name} 必须大于 0。")
+    return parsed
 
 
 def load_asr_config() -> VolcAsrConfig:
@@ -53,4 +83,6 @@ def load_ark_config() -> VolcArkConfig:
         api_key=require_env("VOLC_ARK_API_KEY"),
         model=require_env("VOLC_ARK_MODEL"),
         base_url=os.getenv("VOLC_ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
+        timeout_seconds=optional_float_env("VOLC_ARK_TIMEOUT_SECONDS", 600.0),
+        max_tokens=optional_int_env("VOLC_ARK_MAX_TOKENS", 16000),
     )

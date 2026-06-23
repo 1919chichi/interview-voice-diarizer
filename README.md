@@ -79,6 +79,8 @@ VOLC_ARK_MODEL=你的方舟模型_Endpoint_ID
 | `VOLC_ASR_RESOURCE_ID` | `volc.seedasr.auc` | ASR 标准版资源 ID |
 | `VOLC_ASR_FLASH_RESOURCE_ID` | `volc.bigasr.auc_turbo` | ASR 极速版资源 ID |
 | `VOLC_ARK_BASE_URL` | `https://ark.cn-beijing.volces.com/api/v3` | 方舟 OpenAI 兼容接口地址 |
+| `VOLC_ARK_TIMEOUT_SECONDS` | `600` | 方舟分析请求等待秒数，长录音可继续调大 |
+| `VOLC_ARK_MAX_TOKENS` | `16000` | 方舟复盘 JSON 输出 token 上限，避免长报告被截断 |
 
 也可以直接通过进程环境变量传入。可选变量如需使用代码默认值，应省略该变量，而不是将其设置为空字符串。
 

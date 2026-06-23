@@ -129,10 +129,10 @@ class VolcAsrClient:
 
 
 class VolcArkClient:
-    def __init__(self, config: VolcArkConfig, timeout: float = 120.0) -> None:
+    def __init__(self, config: VolcArkConfig, timeout: float | None = None) -> None:
         """初始化火山方舟 LLM 客户端，保存配置和 HTTP 超时时间。"""
         self.config = config
-        self.timeout = timeout
+        self.timeout = config.timeout_seconds if timeout is None else timeout
 
     def chat_json(self, messages: list[dict[str, str]]) -> dict[str, Any]:
         """发送 chat completion 请求，以 json_object 格式强制输出，返回解析后的 JSON 内容。"""
@@ -142,6 +142,7 @@ class VolcArkClient:
             "messages": messages,
             "temperature": 0.2,
             "response_format": {"type": "json_object"},
+            "max_tokens": self.config.max_tokens,
         }
         try:
             response = httpx.post(

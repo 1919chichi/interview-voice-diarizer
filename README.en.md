@@ -79,6 +79,8 @@ VOLC_ARK_MODEL=your-ark-model-endpoint-id
 | `VOLC_ASR_RESOURCE_ID` | `volc.seedasr.auc` | Standard ASR resource ID |
 | `VOLC_ASR_FLASH_RESOURCE_ID` | `volc.bigasr.auc_turbo` | Flash ASR resource ID |
 | `VOLC_ARK_BASE_URL` | `https://ark.cn-beijing.volces.com/api/v3` | Ark OpenAI-compatible API base URL |
+| `VOLC_ARK_TIMEOUT_SECONDS` | `600` | Ark analysis request timeout in seconds; increase it for long recordings |
+| `VOLC_ARK_MAX_TOKENS` | `16000` | Ark review JSON output token limit; helps avoid truncated long reports |
 
 You can pass all settings through process environment variables instead. To use a code default, omit the optional variable rather than setting it to an empty string.
 
